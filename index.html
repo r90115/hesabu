@@ -117,9 +117,9 @@
   </div>
 
   <script>
-    function populateSelect(id, from, to) {
+    function populateSelect(id, from, to, step = 1) {
       const select = document.getElementById(id);
-      for(let i = from; i <= to; i++) {
+      for (let i = from; i <= to; i += step) {
         const option = document.createElement('option');
         option.value = i;
         option.textContent = i < 10 ? '0' + i : i;
@@ -127,10 +127,12 @@
       }
     }
 
-    populateSelect('startHour', 1, 24);
-    populateSelect('endHour', 1, 24);
-    populateSelect('startMinute', 0, 59);
-    populateSelect('endMinute', 0, 59);
+    // 小時：8~17
+    populateSelect('startHour', 8, 17);
+    populateSelect('endHour', 8, 17);
+    // 分鐘：0~55，每5分鐘一個選項
+    populateSelect('startMinute', 0, 55, 5);
+    populateSelect('endMinute', 0, 55, 5);
 
     function calculate() {
       const startH = parseInt(document.getElementById('startHour').value);
@@ -143,11 +145,8 @@
         return;
       }
 
-      const sHour = (startH === 24) ? 0 : startH;
-      const eHour = (endH === 24) ? 0 : endH;
-
-      const startTotal = sHour * 60 + startM;
-      const endTotal = eHour * 60 + endM;
+      const startTotal = startH * 60 + startM;
+      const endTotal = endH * 60 + endM;
 
       let diff = endTotal - startTotal;
       if (diff < 0) diff += 24 * 60;
@@ -166,15 +165,12 @@
       }
 
       const finalDiff = Math.max(0, diff - deducted);
-      const diffHour = Math.floor(finalDiff / 60);
-      const diffMinute = finalDiff % 60;
 
-      let resultText = `開始時間 ${startH}時${startM}分，結束時間 ${endH}時${endM}分\n`;
-      resultText += `原始時間差：${diff} 分鐘\n`;
+      let resultText = '';
       if (deducted > 0) {
         resultText += `扣除休息時間：${deducted} 分鐘\n`;
       }
-      resultText += `計算後總時間：${finalDiff} 分鐘（${diffHour} 小時 ${diffMinute} 分鐘）`;
+      resultText += `計算後總時間：${finalDiff} 分鐘`;
 
       document.getElementById('result').innerText = resultText;
     }
