@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>計算時間差（分鐘）</title>
+
   <style>
     * { box-sizing: border-box; }
 
@@ -70,7 +71,6 @@
       border: none;
       border-radius: 10px;
       cursor: pointer;
-      transition: background 0.3s ease;
     }
 
     button:hover {
@@ -84,96 +84,146 @@
       white-space: pre-line;
       text-align: left;
     }
-
-    @media (max-width: 400px) {
-      .time-select-group {
-        flex-direction: column;
-      }
-    }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>計算時間差</h1>
 
-    <div>
-      <label for="startHour">開始時間：</label>
-      <div class="time-select-group">
-        <select id="startHour"></select>
-        <select id="startMinute"></select>
-      </div>
+<div class="container">
+
+  <h1>計算時間差</h1>
+
+  <!-- 開始時間 -->
+  <div>
+    <label>開始時間：</label>
+    <div class="time-select-group">
+      <select id="startHour"></select>
+      <select id="startMinute"></select>
     </div>
-
-    <div>
-      <label for="endHour">結束時間：</label>
-      <div class="time-select-group">
-        <select id="endHour"></select>
-        <select id="endMinute"></select>
-      </div>
-    </div>
-
-    <button onclick="calculate()">計算總分鐘</button>
-    <p id="result"></p>
   </div>
 
-  <script>
-    function populateSelect(id, from, to, step = 1) {
-      const select = document.getElementById(id);
-      for (let i = from; i <= to; i += step) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = i < 10 ? '0' + i : i;
-        select.appendChild(option);
-      }
+  <!-- 結束時間 -->
+  <div>
+    <label>結束時間：</label>
+    <div class="time-select-group">
+      <select id="endHour"></select>
+      <select id="endMinute"></select>
+    </div>
+  </div>
+
+  <button onclick="calculate()">計算總分鐘</button>
+
+  <p id="result"></p>
+
+</div>
+
+<script>
+
+  // 產生下拉選單
+  function populateSelect(id, from, to, step = 1) {
+    const select = document.getElementById(id);
+
+    for (let i = from; i <= to; i += step) {
+      const option = document.createElement('option');
+      option.value = i;
+      option.textContent = i < 10 ? '0' + i : i;
+      select.appendChild(option);
+    }
+  }
+
+  // 小時：8 ~ 19
+  populateSelect('startHour', 8, 19);
+  populateSelect('endHour', 8, 19);
+
+  // 分鐘：每5分鐘
+  populateSelect('startMinute', 0, 55, 5);
+  populateSelect('endMinute', 0, 55, 5);
+
+
+  // 計算主程式
+  function calculate() {
+
+    const startH = parseInt(document.getElementById('startHour').value);
+    const startM = parseInt(document.getElementById('startMinute').value);
+
+    const endH = parseInt(document.getElementById('endHour').value);
+    const endM = parseInt(document.getElementById('endMinute').value);
+
+
+    // 檢查是否有選
+    if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) {
+      document.getElementById('result').innerText = '⚠️ 請選擇完整時間！';
+      return;
     }
 
-    // 小時：8~17
-    populateSelect('startHour', 8, 17);
-    populateSelect('endHour', 8, 17);
-    // 分鐘：0~55，每5分鐘一個選項
-    populateSelect('startMinute', 0, 55, 5);
-    populateSelect('endMinute', 0, 55, 5);
 
-    function calculate() {
-      const startH = parseInt(document.getElementById('startHour').value);
-      const startM = parseInt(document.getElementById('startMinute').value);
-      const endH = parseInt(document.getElementById('endHour').value);
-      const endM = parseInt(document.getElementById('endMinute').value);
+    // 轉成分鐘
+    const startTotal = startH * 60 + startM;
+    const endTotal = endH * 60 + endM;
 
-      if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) {
-        document.getElementById('result').innerText = '⚠️ 請選擇完整時間！';
-        return;
-      }
 
-      const startTotal = startH * 60 + startM;
-      const endTotal = endH * 60 + endM;
+    // 原始時間差
+    let diff = endTotal - startTotal;
 
-      let diff = endTotal - startTotal;
-      if (diff < 0) diff += 24 * 60;
-
-      const specialRanges = [
-        [10 * 60 + 0, 10 * 60 + 10, 10],
-        [15 * 60 + 0, 15 * 60 + 10, 10],
-        [12 * 60 + 10, 13 * 60 + 0, 50],
-      ];
-
-      let deducted = 0;
-      for (const [rStart, rEnd, deduction] of specialRanges) {
-        if (startTotal < rEnd && endTotal > rStart) {
-          deducted += deduction;
-        }
-      }
-
-      const finalDiff = Math.max(0, diff - deducted);
-
-      let resultText = '';
-      if (deducted > 0) {
-        resultText += `扣除休息時間：${deducted} 分鐘\n`;
-      }
-      resultText += `計算後總時間：${finalDiff} 分鐘`;
-
-      document.getElementById('result').innerText = resultText;
+    if (diff < 0) {
+      diff += 24 * 60; // 跨日
     }
-  </script>
+
+
+    // 固定休息時間
+    const specialRanges = [
+
+      // 上午休息
+      [10 * 60 + 0, 10 * 60 + 10, 10],
+
+      // 下午休息
+      [15 * 60 + 0, 15 * 60 + 10, 10],
+
+      // 午休
+      [12 * 60 + 10, 13 * 60 + 0, 50],
+
+    ];
+
+
+    // 計算扣除時間
+    let deducted = 0;
+
+
+    // 原本休息扣除
+    for (const [rStart, rEnd, deduction] of specialRanges) {
+
+      if (startTotal < rEnd && endTotal > rStart) {
+        deducted += deduction;
+      }
+
+    }
+
+
+    // 超過 18:10 再扣 20 分鐘
+    if (endTotal > (18 * 60 + 10)) {
+      deducted += 20;
+    }
+
+
+    // 最終時間
+    const finalDiff = Math.max(0, diff - deducted);
+
+
+    // 顯示結果
+    let resultText = '';
+
+    if (deducted > 0) {
+      resultText += `扣除時間：${deducted} 分鐘\n`;
+    }
+
+    resultText += `計算後總時間：${finalDiff} 分鐘`;
+
+
+    document.getElementById('result').innerText = resultText;
+
+  }
+
+</script>
+
 </body>
 </html>
