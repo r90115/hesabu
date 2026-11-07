@@ -1,228 +1,232 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>計算時間差（分鐘）</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>語音時間計算器</title>
+<style>
+* { box-sizing: border-box; }
 
-  <style>
-    * { box-sizing: border-box; }
+body {
+  font-family: Arial, sans-serif;
+  background: #f0f2f5;
+  margin: 0;
+  padding: 15px;
+}
 
-    body {
-      font-family: "Segoe UI", Arial, sans-serif;
-      background: #f0f2f5;
-      margin: 0;
-      padding: 15px;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-    }
+.container {
+  background: white;
+  padding: 22px;
+  border-radius: 12px;
+  max-width: 420px;
+  margin: auto;
+  box-shadow: 0 4px 12px #0001;
+}
 
-    .container {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      text-align: center;
-      width: 100%;
-      max-width: 400px;
-    }
+h2 { text-align: center; }
 
-    h1 {
-      margin-bottom: 18px;
-      color: #333;
-      font-size: 1.5rem;
-    }
+button {
+  width: 100%;
+  padding: 15px;
+  font-size: 18px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-top: 12px;
+}
 
-    label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 6px;
-      font-size: 1rem;
-      text-align: left;
-    }
+#mic {
+  background: #4CAF50;
+  color: white;
+}
 
-    .time-select-group {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 20px;
-      gap: 10px;
-    }
+#calculate {
+  background: #1976d2;
+  color: white;
+}
 
-    select {
-      flex: 1;
-      padding: 10px;
-      font-size: 1.1rem;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      appearance: none;
-      background: white;
-      cursor: pointer;
-      text-align-last: center;
-    }
+#result {
+  white-space: pre-line;
+  font-size: 17px;
+  margin-top: 20px;
+  line-height: 1.8;
+}
 
-    button {
-      width: 100%;
-      padding: 14px;
-      font-size: 1.2rem;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #45a049;
-    }
-
-    #result {
-      margin-top: 22px;
-      font-size: 1.1rem;
-      color: #333;
-      white-space: pre-line;
-      text-align: left;
-    }
-  </style>
+#voiceText {
+  background: #f0f2f5;
+  padding: 12px;
+  border-radius: 8px;
+  min-height: 45px;
+}
+</style>
 </head>
 
 <body>
-
 <div class="container">
 
-  <h1>計算時間差</h1>
+<h2>語音時間計算器</h2>
 
-  <!-- 開始時間 -->
-  <div>
-    <label>開始時間：</label>
-    <div class="time-select-group">
-      <select id="startHour"></select>
-      <select id="startMinute"></select>
-    </div>
-  </div>
+<p>請按下麥克風，一次說出上下班時間。</p>
 
-  <!-- 結束時間 -->
-  <div>
-    <label>結束時間：</label>
-    <div class="time-select-group">
-      <select id="endHour"></select>
-      <select id="endMinute"></select>
-    </div>
-  </div>
+<button id="mic" onclick="startVoice()">🎤 開始語音輸入</button>
 
-  <button onclick="calculate()">計算總分鐘</button>
+<p>辨識內容：</p>
+<div id="voiceText">尚未輸入</div>
 
-  <p id="result"></p>
+<button id="calculate" onclick="calculate()">計算總分鐘</button>
+
+<div id="result"></div>
 
 </div>
 
 <script>
+let recognizedText = "";
 
-  // 產生下拉選單
-  function populateSelect(id, from, to, step = 1) {
-    const select = document.getElementById(id);
+function startVoice() {
+  const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
 
-    for (let i = from; i <= to; i += step) {
-      const option = document.createElement('option');
-      option.value = i;
-      option.textContent = i < 10 ? '0' + i : i;
-      select.appendChild(option);
-    }
+  if (!SpeechRecognition) {
+    alert("目前瀏覽器不支援語音辨識，請使用 Chrome。");
+    return;
   }
 
-  // 小時：8 ~ 19
-  populateSelect('startHour', 8, 19);
-  populateSelect('endHour', 8, 19);
+  const recognition = new SpeechRecognition();
 
-  // 分鐘：每5分鐘
-  populateSelect('startMinute', 0, 55, 5);
-  populateSelect('endMinute', 0, 55, 5);
+  recognition.lang = "zh-TW";
+  recognition.continuous = false;
+  recognition.interimResults = false;
 
+  document.getElementById("voiceText").innerText =
+    "正在聆聽，請說出上下班時間...";
 
-  // 計算主程式
-  function calculate() {
+  recognition.onresult = function(event) {
+    recognizedText = event.results[0][0].transcript;
+    document.getElementById("voiceText").innerText =
+      recognizedText;
+  };
 
-    const startH = parseInt(document.getElementById('startHour').value);
-    const startM = parseInt(document.getElementById('startMinute').value);
+  recognition.onerror = function() {
+    document.getElementById("voiceText").innerText =
+      "語音辨識失敗，請重新輸入。";
+  };
 
-    const endH = parseInt(document.getElementById('endHour').value);
-    const endM = parseInt(document.getElementById('endMinute').value);
+  recognition.start();
+}
 
+// 中文數字轉阿拉伯數字
+function chineseNumber(s) {
+  const digits = {
+    "零":0, "一":1, "二":2, "兩":2,
+    "三":3, "四":4, "五":5,
+    "六":6, "七":7, "八":8, "九":9
+  };
 
-    // 檢查是否有選
-    if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) {
-      document.getElementById('result').innerText = '⚠️ 請選擇完整時間！';
-      return;
+  if (/^\d+$/.test(s)) return Number(s);
+
+  if (s === "十") return 10;
+
+  if (s.includes("十")) {
+    const p = s.split("十");
+    return (p[0] ? digits[p[0]] : 1) * 10 +
+      (p[1] ? digits[p[1]] : 0);
+  }
+
+  let n = 0;
+  for (const c of s) {
+    if (digits[c] !== undefined) n = n * 10 + digits[c];
+  }
+  return n;
+}
+
+// 擷取時間
+function parseTimes(text) {
+  text = text.replace(/\s/g, "");
+
+  const regex =
+    /(上午|早上|中午|下午|晚上)?(\d{1,2}|[零一二兩三四五六七八九十]+)(?:點|時)(?:(\d{1,2}|[零一二兩三四五六七八九十]+)分?)?/g;
+
+  const matches = [...text.matchAll(regex)];
+
+  if (matches.length < 2) return null;
+
+  return matches.slice(0, 2).map(m => {
+    let hour = chineseNumber(m[2]);
+    let minute = m[3] ? chineseNumber(m[3]) : 0;
+    const period = m[1];
+
+    if (period === "下午" || period === "晚上") {
+      if (hour < 12) hour += 12;
+    } else if (period === "中午" && hour < 11) {
+      hour += 12;
+    } else if ((period === "上午" || period === "早上") && hour === 12) {
+      hour = 0;
     }
 
+    return hour * 60 + minute;
+  });
+}
 
-    // 轉成分鐘
-    const startTotal = startH * 60 + startM;
-    const endTotal = endH * 60 + endM;
+function calculate() {
+  if (!recognizedText) {
+    alert("請先進行語音輸入！");
+    return;
+  }
 
+  const times = parseTimes(recognizedText);
 
-    // 原始時間差
-    let diff = endTotal - startTotal;
+  if (!times) {
+    document.getElementById("result").innerText =
+      "無法辨識兩個完整時間，請重新說一次。";
+    return;
+  }
 
-    if (diff < 0) {
-      diff += 24 * 60; // 跨日
-    }
+  const [startTotal, endTotal] = times;
 
+  let diff = endTotal - startTotal;
 
-    // 固定休息時間
-    const specialRanges = [
+  if (diff < 0) diff += 1440;
 
-      // 上午休息
-      [10 * 60 + 0, 10 * 60 + 10, 10],
+  const specialRanges = [
+    [600, 610, 10],
+    [900, 910, 10],
+    [730, 780, 50]
+  ];
 
-      // 下午休息
-      [15 * 60 + 0, 15 * 60 + 10, 10],
+  let deducted = 0;
 
-      // 午休
-      [12 * 60 + 10, 13 * 60 + 0, 50],
-
-    ];
-
-
-    // 計算扣除時間
-    let deducted = 0;
-
-
-    // 原本休息扣除
-    for (const [rStart, rEnd, deduction] of specialRanges) {
-
-      if (startTotal < rEnd && endTotal > rStart) {
-        deducted += deduction;
+  for (const [s, e, d] of specialRanges) {
+    // 計算跨日區間重疊
+    for (const offset of [0, 1440]) {
+      if (startTotal < e + offset &&
+          endTotal + (endTotal < startTotal ? 1440 : 0) > s + offset) {
+        deducted += d;
+        break;
       }
-
     }
-
-
-    // 超過 18:10 再扣 20 分鐘
-    if (endTotal > (18 * 60 + 10)) {
-      deducted += 20;
-    }
-
-
-    // 最終時間
-    const finalDiff = Math.max(0, diff - deducted);
-
-
-    // 顯示結果
-    let resultText = '';
-
-    if (deducted > 0) {
-      resultText += `扣除時間：${deducted} 分鐘\n`;
-    }
-
-    resultText += `計算後總時間：${finalDiff} 分鐘`;
-
-
-    document.getElementById('result').innerText = resultText;
-
   }
 
+  if (endTotal > 1030) deducted += 20;
+
+  const finalDiff = Math.max(0, diff - deducted);
+
+  document.getElementById("result").innerText =
+    "開始時間：" +
+    formatTime(startTotal) +
+    "\n結束時間：" +
+    formatTime(endTotal) +
+    "\n原始時間：" + diff + " 分鐘" +
+    "\n扣除時間：" + deducted + " 分鐘" +
+    "\n計算後總時間：" + finalDiff + " 分鐘";
+}
+
+function formatTime(t) {
+  return String(Math.floor(t / 60) % 24).padStart(2, "0") +
+    ":" +
+    String(t % 60).padStart(2, "0");
+}
 </script>
 
 </body>
